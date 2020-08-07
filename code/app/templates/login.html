@@ -1,0 +1,44 @@
+{% extends "bootstrap/base.html" %}
+
+{% block head %}
+    {{ super() }}
+    {% include 'head.html' %}
+{% endblock %}
+
+{% block title %}
+DogFind.us - Login
+{% endblock %}
+
+{% block navbar %}
+    {% include 'navbar.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container text-left">
+    <h1>Sign In</h1>
+    <br>
+    <form action="" method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <p>
+            {{ form.username.label }}<br>
+            {{ form.username(size=32) }}<br>
+            {% for error in form.username.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}<br>
+            {% for error in form.password.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>{{ form.remember_me() }} {{ form.remember_me.label }}</p>
+        <p>{{ form.submit() }}</p>
+    </form>
+    <p>New User? <a href="{{ url_for('register') }}" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'register', 'value':4});">Click to Register!</a></p>
+</div> <!-- /jumbotron -->
+{% endblock %}
+
+
+<!-- Citation: adapted from https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins -->

@@ -1,0 +1,52 @@
+{% extends "bootstrap/base.html" %}
+
+{% block head %}
+    {{ super() }}
+    {% include 'head.html' %}
+{% endblock %}
+
+{% block title %}
+DogFind.us - Results Page
+{% endblock %}
+
+{% block navbar %}
+    <nav class="navbar navbar-dark bg-dark">
+      <a class="navbar-brand" href="{{ url_for('index') }}">
+        <img src={{ url_for('static',filename='icon_dogfindus_1.png') }} height="30" class="d-inline-block align-top" alt="">
+        DogFind.us
+      </a>
+    </nav>
+
+    <div class="navbar navbar-dark bg-dark navbar-inverse" role="navigation" >
+        <a href="{{ url_for('index') }}" style="color:#FFFFFF;" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'home', 'value':6});"> Home </a>
+        {% if current_user.is_anonymous %}
+        <a href="{{ url_for('login') }}" style="color:#FFFFFF;" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'login', 'value':2});"> Login </a>
+        {% else %}
+        <a href="{{ url_for('logout') }}" style="color:#FFFFFF;" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'logout', 'value':5});"> Logout </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+
+{% block content %}
+    <div class="album py-5 bg-light">
+        <div class="container">
+            <div class="row">
+                {% for dog in dogs %}
+                <div class="col-md-4">
+                    <div class="card mb-4 shadow-sm">
+                        <img class="bd-placeholder-img card-img-top"
+                             style="width: 350px; height: 225px; object-fit: contain;"
+                             src={{ dog.photo }}>
+                        <div class="card-body" style="text-align: center">
+                            <a href={{ dog.website }} target="_blank" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'check_it_out', 'value':1});"> Check it Out</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+
+{% endblock %}
