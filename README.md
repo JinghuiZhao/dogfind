@@ -6,4 +6,4 @@ A containerized version of the group project of MSDS698, with data rescraped and
 
 `docker run -p 5000:5000 dogfind`
 
-check http://localhost:5050
+check http://localhost:5000
