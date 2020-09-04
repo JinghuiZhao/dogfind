@@ -1,14 +1,18 @@
+# Basic flask container
+
 FROM ubuntu:18.04
 
 RUN apt-get update -y && \
     apt-get install -y python3-pip python3-dev
 
-COPY . /app
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+ADD ./app /home/app/
+ADD requirements.txt /home/app/
 
-WORKDIR /app/code/app
-RUN . ../../env/test_env.sh
+WORKDIR /home/app/
 
-ENTRYPOINT [ "python3" ]
-CMD ["app.py"]
+
+RUN pip3 install -r requirements.txt --no-cache-dir
+
+EXPOSE 5000
+
+ENTRYPOINT ["python3", "app.py"]

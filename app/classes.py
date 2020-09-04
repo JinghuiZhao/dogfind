@@ -41,14 +41,14 @@ class RegistrationForm(FlaskForm):
 
     def validate_username(self, username):
         """Checks input username against existing usernames in database"""
-        user = classes.User.query.filter_by(username=username.data).first()
+        user = User.query.filter_by(username=username.data).first()
         if user is not None:
             raise ValidationError('Please use a different username.')
 
     def validate_email(self, email):
         """Checks input email address against
          existing email addresses in database"""
-        user = classes.User.query.filter_by(email=email.data).first()
+        user = User.query.filter_by(email=email.data).first()
         if user is not None:
             raise ValidationError('Please use a different email address.')
 

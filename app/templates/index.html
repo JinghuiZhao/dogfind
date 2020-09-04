@@ -58,8 +58,8 @@
       </li>
       <li class="nav-item">
           {% if not current_user.is_anonymous %}
-           <a class="nav-link" href="{{ url_for('register') }}" style="color:#FFFFFF;" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'register', 'value':10});"> Search History </a>
-          {% endif %}
+          <a class="nav-link" href="{{ url_for('record') }}" style="color:#FFFFFF;" onclick="gtag('event', 'click', {'event_category':'link', 'event_label':'record', 'value':10});"> Search History </a>
+          {% endif %} 
       </li>
       <li class="nav-item">
           {% if current_user.is_anonymous %}
