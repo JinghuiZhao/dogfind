@@ -26,29 +26,12 @@ from tensorflow.keras.preprocessing import image
 # sys.path.insert(0, '%s'%os.environ['PROJECT_PATH'])
 
 
-db_hostname = 'db'
-db_username ='elainezhao'
-db_password ='zjh611611'
-db_database = 'flask_app'
-db_port = '5432'
-
 application = Flask(__name__)
-application.config['SQLALCHEMY_DATABASE_URI'] = \
-    'postgresql+psycopg2://{user}:{passwd}@{host}:{port}/{db}'.format(
-        user=db_username,
-        passwd=db_password ,
-        host=db_hostname,
-        port=db_port,
-        db=db_database)
-
-application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-application.config['SECRET_KEY'] = os.urandom(24)
+application.config.from_object(Config)
 db = SQLAlchemy(application)
+db.create_all()
+db.session.commit()
 bootstrap = Bootstrap(application)
-
-
-
-
 
 # login_manager needs to be initiated before running the app
 login_manager = LoginManager()
@@ -57,30 +40,12 @@ login_manager.init_app(application)
 # Added at the bottom to avoid circular dependencies.
 # (Altough it violates PEP8 standards)
 
+
 base_model = InceptionV3(weights='imagenet')
 model = Model(inputs=base_model.input,
               outputs=base_model.get_layer('avg_pool').output)
 model._make_predict_function()
 
-
-def database_initialization_sequence():
-    db.create_all()
-    test_rec = User(
-            'John Doe',
-            'hello@gmail.com',
-            'hello123')
-
-    db.session.add(test_rec)
-    db.session.rollback()
-    db.session.commit()
-    users = User.query.all()
-    print(users)  
-
-
-@login_manager.user_loader
-def load_user(id):
-    """Reload the user object from the user ID stored in the session"""
-    return User.query.get(int(id))
 
 
 @application.route('/index', methods=['GET', 'POST'])
@@ -98,31 +63,6 @@ def index():
         file_dir_path = os.path.join(application.instance_path, 'files')
         file_path = os.path.join(file_dir_path, filename)
 
-        if current_user.is_authenticated:
-            user_id = str(current_user.get_id())
-            username = current_user.username
-            ts = time.time()
-            timestamp = datetime.datetime.\
-                fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            myConnection = psycopg2.connect(
-                                            host=db_hostname,
-                                            user=db_username,
-                                            password=db_password,
-                                            port=db_port,
-                                            dbname=db_database)
-            cur = myConnection.cursor()
-
-            cur.execute("create table if not exists user_upload\
-                        (user_id varchar(255), username varchar(255),\
-                        file_path varchar(255), upload_time timestamp);")
-
-            cur.execute("INSERT into user_upload \
-                        (user_id, username, file_path, upload_time\
-                        ) values ('%s','%s','%s','%s');"
-                        % (user_id, username, file_path, timestamp))
-            cur.close()
-            myConnection.commit()
-            myConnection.close()
 
         if os.path.exists(file_dir_path):
             # Save file to file_path (instance/ + 'files’ + filename)
@@ -147,32 +87,31 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data,
+        user = classes.User(username=form.username.data,
                             email=form.email.data, password=form.password.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
 
-        myConnection = psycopg2.connect(
-                                        host=db_hostname, user=db_username,
-                                        password=db_password,
-                                        port=db_port,
-                                        dbname=db_database)
-        cur = myConnection.cursor()
-        cur.execute(
-                    "create table if not exists users\
-                    (username varchar(255), email varchar(255),\
-                    password varchar(255));")
-        username = str(form.username.data)
-        email = str(form.email.data)
-        password = str(form.password.data)
+        # myConnection = psycopg2.connect(
+        #                                 host=db_hostname, user=db_username,
+        #                                 password=db_password,
+        #                                 dbname=db_database)
+        # cur = myConnection.cursor()
+        # cur.execute(
+        #             "create table if not exists puppy.users\
+        #             (username varchar(255), email varchar(255),\
+        #             password varchar(255));")
+        # username = str(form.username.data)
+        # email = str(form.email.data)
+        # password = str(form.password.data)
 
-        cur.execute("INSERT into users (username, email,\
-                    password) values ('%s', '%s', '%s');"
-                    % (username, email, password))
-
-        myConnection.commit()
-        myConnection.close()
+        # cur.execute("INSERT into puppy.users (username, email,\
+        #             password) values ('%s', '%s', '%s');"
+        #             % (username, email, password))
+        # # cur.execute("select * from puppy.users;")
+        # myConnection.commit()
+        # myConnection.close()
 
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
@@ -186,7 +125,8 @@ def login():
         return redirect(url_for('index'))
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
+        user = classes.User.query.\
+            filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
             return redirect(url_for('login'))
@@ -228,30 +168,6 @@ def upload():
         if current_user.is_authenticated:
             user_id = str(current_user.get_id())
             username = current_user.username
-            ts = time.time()
-            timestamp = datetime.datetime.\
-                fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            myConnection = psycopg2.connect(host=db_hostname,
-                                            user=db_username,
-                                            password=db_password,
-                                            port=db_port,
-                                            dbname=db_database)
-            cur = myConnection.cursor()
-            cur.execute("create table if not exists\
-                        user_upload (user_id varchar(255),\
-                        username varchar(255),\
-                        file_path varchar(255),\
-                        upload_time timestamp);")
-
-            cur.execute("INSERT into user_upload\
-                        (user_id, username, file_path,\
-                        upload_time) values\
-                        ('%s','%s','%s','%s');"
-                        % (user_id, username,
-                           file_path, timestamp))
-            cur.close()
-            myConnection.commit()
-            myConnection.close()
 
         if os.path.exists(file_dir_path):
             # Save file to file_path (instance/ + 'files' + filename)
@@ -268,18 +184,22 @@ def upload():
     return render_template('upload.html', form=file)
 
 
-
 @application.route('/result', methods=['GET', 'POST'])
 def result():
     """show matching result to user."""
     file_name = request.args.get('filename')
     file_path = os.path.join(application.instance_path, 'files', file_name)
 
+    # here change to local folder 
+    # PATH = os.path.join(os.sep, "e", "ec2-user",
+    #                     "product-analytics-group-project-puppylover",
+    #                     "data")
+
     # the path for metadata.
-    merged_path = 'data/final.csv'
+    merged_path = "data/final.csv"
     # os.environ["LOCAL_TABLE_PATH"]
     # the path for embedding results.
-    embedding_path = 'data/embeddings.out'
+    embedding_path = "data/embeddings.out"
     # os.environ["LOCAL_EMBED_PATH"]
 
     dogs = matching.matching_dog(model, file_path,
@@ -290,48 +210,7 @@ def result():
 
 
 
-@application.route('/record', methods=['GET', 'POST'])
-@login_required
-def record():
-    """Show a user's past search results"""
-    user_id = current_user.get_id()
-    myConnection = psycopg2.connect(host=db_hostname,
-                                    user=db_username,
-                                    password=db_password,
-                                    port=db_port,
-                                    dbname=db_database)
-    cur = myConnection.cursor()
-    cur.execute("select * from user_upload where\
-                upload_time in (select max(upload_time)\
-                from user_upload\
-                where user_id = '%s');" % str(user_id))
-    result = cur.fetchall()
-    try:
-        user_name = result[0][1]
-        latest_upload_path = result[0][2]
-
-        merged_path = 'data/final.csv'
-        embedding_path =  'data/embeddings.out'
-
-        dogs = matching.matching_dog(model,
-                                     latest_upload_path,
-                                     embedding_path,
-                                     merged_path)
-
-        return render_template('record.html', user_name=user_name, dogs=dogs)
-    except RuntimeError:
-        return render_template('no_record.html')
 
 
 if __name__ == '__main__':
-    dbstatus = False
-    while dbstatus == False:
-        try:
-            db.create_all()
-        except:
-            time.sleep(1)
-        else:
-            dbstatus = True
-    database_initialization_sequence()
-    application.run(debug=True, host='0.0.0.0')
-
+    application.run(debug=True,host='0.0.0.0')

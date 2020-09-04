@@ -23,7 +23,7 @@ def cos_d(v1, v2):
     return 1 - v1.dot(v2.T) / np.linalg.norm(v1) / np.linalg.norm(v2)
 
 
-def matching_dog(model, img_input_path, embedding_path, merged_path, top_n=9):
+def matching_dog(model, img_input_path, embedding_path, merged_path, top_n=24):
     """Returns list of top_n similar dog objects"""
     img = image.load_img(img_input_path, target_size=(299, 299))
 
