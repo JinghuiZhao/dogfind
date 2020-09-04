@@ -2,8 +2,10 @@
 
 A containerized version of the group project of MSDS698, with data rescraped and some code refactered.
 
-`docker build -t dogfind:latest .`
+`docker-compose up --build -d.`
 
-`docker run -p 5000:5000 dogfind`
+`docker-compose up`
+
+`docker-compose down`
 
 check http://localhost:5000
