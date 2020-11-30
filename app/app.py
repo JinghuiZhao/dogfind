@@ -1,5 +1,4 @@
 from flask import Flask
-from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_bootstrap import Bootstrap
@@ -19,18 +18,22 @@ import datetime
 import time
 from tensorflow.keras.models import Model
 from tensorflow.keras import backend
-from tensorflow.keras.applications.inception_v3 import InceptionV3, preprocess_input
-from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.inception_v3 import InceptionV3
+import efficientnet.tfkeras as efn 
+from keras.preprocessing import image
+import logging
 
-# import sys, os
-# sys.path.insert(0, '%s'%os.environ['PROJECT_PATH'])
+
+db_hostname = os.environ['HOSTNAME']
+db_password = os.environ['DB_PASSWORD']
+db_database = os.environ['DATABASE_NAME']
+db_port = os.environ['DB_PORT']
+db_username = os.environ['USERNAME']
 
 
-db_hostname = 'db'
-db_username ='elainezhao'
-db_password ='zjh611611'
-db_database = 'flask_app'
-db_port = '5432'
+merged_path = os.environ['TABLE_PATH']
+embedding_path =  os.environ['VECTOR_PATH']
+
 
 application = Flask(__name__)
 application.config['SQLALCHEMY_DATABASE_URI'] = \
@@ -45,36 +48,15 @@ application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 application.config['SECRET_KEY'] = os.urandom(24)
 db = SQLAlchemy(application)
 bootstrap = Bootstrap(application)
-
-
-
-
-
-# login_manager needs to be initiated before running the app
 login_manager = LoginManager()
 login_manager.init_app(application)
 
-# Added at the bottom to avoid circular dependencies.
-# (Altough it violates PEP8 standards)
 
-base_model = InceptionV3(weights='imagenet')
+base_model = efn.EfficientNetB3(weights='imagenet')
 model = Model(inputs=base_model.input,
-              outputs=base_model.get_layer('avg_pool').output)
-model._make_predict_function()
+            outputs=base_model.get_layer('top_dropout').output)
 
-
-def database_initialization_sequence():
-    db.create_all()
-    test_rec = User(
-            'John Doe',
-            'hello@gmail.com',
-            'hello123')
-
-    db.session.add(test_rec)
-    db.session.rollback()
-    db.session.commit()
-    users = User.query.all()
-    print(users)  
+target_size = (300, 300)
 
 
 @login_manager.user_loader
@@ -83,18 +65,13 @@ def load_user(id):
     return User.query.get(int(id))
 
 
-@application.route('/index', methods=['GET', 'POST'])
 @application.route('/', methods=['GET', 'POST'])
 def index():
     """upload a file from a client machine."""
-    file = UploadFileForm()  # file : UploadFileForm class instance
+    file = UploadFileForm() 
     if file.validate_on_submit():
-        f = file.file_selector.data  # f : Data of FileField
+        f = file.file_selector.data
         filename = secure_filename(f.filename)
-        # filename : filename of FileField
-        # secure_filename secures a filename
-        # before storing it directly on the filesystem.
-
         file_dir_path = os.path.join(application.instance_path, 'files')
         file_path = os.path.join(file_dir_path, filename)
 
@@ -125,14 +102,14 @@ def index():
             myConnection.close()
 
         if os.path.exists(file_dir_path):
-            # Save file to file_path (instance/ + 'files’ + filename)
+            # Save file to file_path (instance/ + 'files' + filename)
             f.save(file_path)
         else:
             try:
                 os.makedirs(file_dir_path)
                 f.save(file_path)
             except OSError:
-                print("Creation of the directory %s failed" % file_dir_path)
+                logging.info("Creation of the directory %s failed" % file_dir_path)
                 return redirect(url_for('index'))
         return redirect(url_for('result', filename=filename))
     return render_template('index.html', form=file,
@@ -214,9 +191,9 @@ def logout():
 @application.route('/upload', methods=['GET', 'POST'])
 def upload():
     """upload a file from a client machine."""
-    file = UploadFileForm()  # file : UploadFileForm class instance
+    file = UploadFileForm() 
     if file.validate_on_submit():
-        f = file.file_selector.data  # f : Data of FileField
+        f = file.file_selector.data  
         filename = secure_filename(f.filename)
         # filename : filename of FileField
         # secure_filename secures a filename
@@ -261,7 +238,7 @@ def upload():
                 os.makedirs(file_dir_path)
                 f.save(file_path)
             except OSError:
-                print("Creation of the directory %s failed" % file_dir_path)
+                logging.debug("Creation of the directory %s failed" % file_dir_path)
                 return redirect(url_for('index'))
         # flash('Please wait, we are getting your results')
         return redirect(url_for('result', filename=filename))
@@ -274,17 +251,14 @@ def result():
     """show matching result to user."""
     file_name = request.args.get('filename')
     file_path = os.path.join(application.instance_path, 'files', file_name)
-
-    # the path for metadata.
-    merged_path = 'data/final.csv'
-    # os.environ["LOCAL_TABLE_PATH"]
-    # the path for embedding results.
-    embedding_path = 'data/embeddings.out'
-    # os.environ["LOCAL_EMBED_PATH"]
+    
+    merged_path = os.environ['TABLE_PATH']
+    embedding_path =  os.environ['VECTOR_PATH']
 
     dogs = matching.matching_dog(model, file_path,
-                                 embedding_path, merged_path)
-    file = UploadFileForm()  # file : UploadFileForm class instance
+                                 embedding_path, merged_path, target_size)
+
+    file = UploadFileForm() 
     return render_template('result_new.html',
                            form=file, title='Photos', dogs=dogs)
 
@@ -301,25 +275,26 @@ def record():
                                     port=db_port,
                                     dbname=db_database)
     cur = myConnection.cursor()
-    cur.execute("select * from user_upload where\
+    try:
+        cur.execute("select * from user_upload where\
                 upload_time in (select max(upload_time)\
                 from user_upload\
                 where user_id = '%s');" % str(user_id))
-    result = cur.fetchall()
-    try:
+        result = cur.fetchall()
         user_name = result[0][1]
         latest_upload_path = result[0][2]
 
-        merged_path = 'data/final.csv'
-        embedding_path =  'data/embeddings.out'
+        merged_path = os.environ['TABLE_PATH']
+        embedding_path =  os.environ['VECTOR_PATH']
 
         dogs = matching.matching_dog(model,
                                      latest_upload_path,
                                      embedding_path,
-                                     merged_path)
+                                     merged_path,
+                                     target_size)
 
         return render_template('record.html', user_name=user_name, dogs=dogs)
-    except RuntimeError:
+    except:
         return render_template('no_record.html')
 
 
@@ -329,9 +304,8 @@ if __name__ == '__main__':
         try:
             db.create_all()
         except:
-            time.sleep(1)
+            time.sleep(0.2)
         else:
             dbstatus = True
-    database_initialization_sequence()
-    application.run(debug=True, host='0.0.0.0')
+    application.run(host='0.0.0.0')
 
